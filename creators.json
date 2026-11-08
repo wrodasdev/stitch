@@ -1,0 +1,44 @@
+[
+  {
+    "name": "Mumbo Jumbo",
+    "channel_id": "REPLACE_WITH_CHANNEL_ID",
+    "last_publish_date": "2026-01-01T00:00:00Z",
+    "playlist_id": "REPLACE_WITH_PLAYLIST_ID"
+  },
+  {
+    "name": "Grian",
+    "channel_id": "REPLACE_WITH_CHANNEL_ID",
+    "last_publish_date": "2026-01-01T00:00:00Z",
+    "playlist_id": "PLiO38uHZ5wFFVxxZkiwafQ_ALf9BiOnti"
+  },
+  {
+    "name": "Xisuma",
+    "channel_id": "REPLACE_WITH_CHANNEL_ID",
+    "last_publish_date": "2026-01-01T00:00:00Z",
+    "playlist_id": "REPLACE_WITH_PLAYLIST_ID"
+  },
+  {
+    "name": "TangoTek",
+    "channel_id": "REPLACE_WITH_CHANNEL_ID",
+    "last_publish_date": "2026-01-01T00:00:00Z",
+    "playlist_id": "REPLACE_WITH_PLAYLIST_ID"
+  },
+  {
+    "name": "GeminiTay",
+    "channel_id": "REPLACE_WITH_CHANNEL_ID",
+    "last_publish_date": "2026-01-01T00:00:00Z",
+    "playlist_id": "REPLACE_WITH_PLAYLIST_ID"
+  },
+  {
+    "name": "ImpulseSV",
+    "channel_id": "REPLACE_WITH_CHANNEL_ID",
+    "last_publish_date": "2026-01-01T00:00:00Z",
+    "playlist_id": "REPLACE_WITH_PLAYLIST_ID"
+  },
+  {
+    "name": "BdoubleO100",
+    "channel_id": "REPLACE_WITH_CHANNEL_ID",
+    "last_publish_date": "2026-01-01T00:00:00Z",
+    "playlist_id": "REPLACE_WITH_PLAYLIST_ID"
+  }
+]

@@ -1,71 +1,133 @@
 const std = @import("std");
 const Io = std.Io;
+const Allocator = std.mem.Allocator;
 
-const hc_yt = @import("hc_yt");
+const Creator = struct {
+    name: []const u8,
+    channel_id: []const u8,
+    last_publish_date: []const u8,
+    playlist_id: []const u8,
+};
+
+const Playlist = struct {
+    nextPageToken: ?[]const u8 = null,
+    items: []Video,
+};
+
+const Video = struct {
+    snippet: Snippet,
+};
+
+const Snippet = struct {
+    publishedAt: []const u8,
+    resourceId: Resource,
+};
+
+const Resource = struct {
+    videoId: []const u8,
+};
 
 pub fn main(init: std.process.Init) !void {
-    // Prints to stderr, unbuffered, ignoring potential errors.
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    const io = init.io;
+    const allocator = init.gpa;
+    const path: []const u8 = "creators.json";
+    const yt_key = init.environ_map.get("YOUTUBE_API_KEY") orelse {
+        std.debug.print("Make sure to add your Youtube API Key\n", .{});
+        return error.MissingApiKey;
+    };
 
-    // This is appropriate for anything that lives as long as the process.
-    const arena: std.mem.Allocator = init.arena.allocator();
+    const creators = try loadCreators(io, path, allocator);
+    defer creators.deinit();
 
-    // Accessing command line arguments:
-    const args = try init.minimal.args.toSlice(arena);
-    for (args) |arg| {
-        std.log.info("arg: {s}", .{arg});
+    // for (creators.value) |creator| {
+    //     std.debug.print(
+    //         "Creator Name: {s}\nChannel Id: {s}\nLast Publish Date: {s}\nPlaylist Id: {s}\n",
+    //         .{
+    //             creator.name,
+    //             creator.channel_id,
+    //             creator.last_publish_date,
+    //             creator.playlist_id,
+    //         },
+    //     );
+    // }
+
+    try saveCreators(io, path, creators.value);
+    const playlist = try fetchPlaylist(io, allocator, yt_key, creators.value[1].playlist_id);
+    defer playlist.deinit();
+
+    for (playlist.value.items) |video| {
+        std.debug.print("Published At: {s}\nVideo Id: {s}\n", .{ video.snippet.publishedAt, video.snippet.resourceId.videoId });
+    }
+}
+
+fn loadCreators(io: Io, path: []const u8, allocator: Allocator) !std.json.Parsed([]Creator) {
+    const file = try std.Io.Dir.cwd().openFile(io, path, .{});
+    defer file.close(io);
+
+    var file_buff: [4096]u8 = undefined;
+    var file_reader = file.reader(io, &file_buff);
+    const reader = &file_reader.interface;
+
+    const file_len = try file.length(io);
+    const file_contents = try reader.readAlloc(allocator, file_len);
+    defer allocator.free(file_contents);
+    const file_json = try std.json.parseFromSlice([]Creator, allocator, file_contents, .{ .allocate = .alloc_always });
+    return file_json;
+}
+
+fn saveCreators(io: Io, path: []const u8, creators: []const Creator) !void {
+    const file = try std.Io.Dir.cwd().createFile(io, path, .{});
+    defer file.close(io);
+
+    var file_buff: [4096]u8 = undefined;
+    var file_writer = file.writer(io, &file_buff);
+    const writer = &file_writer.interface;
+
+    try std.json.Stringify.value(creators, .{ .whitespace = .indent_2 }, writer);
+    try writer.flush();
+}
+fn fetchPlaylist(io: Io, allocator: Allocator, api_key: []const u8, playlist_id: []const u8) !std.json.Parsed(Playlist) {
+    //URL BUILDING
+    const base_url: []const u8 = "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet";
+    var url_buffer: [1024]u8 = undefined;
+    const url = try std.mem.print(
+        &url_buffer,
+        "{s}&playlistId={s}&maxResults=5&key={s}",
+        .{ base_url, playlist_id, api_key },
+    );
+    const uri = try std.Uri.parse(url);
+
+    //HTTP RESPONSE
+    var body_buffer = std.Io.Writer.Allocating.init(allocator);
+    defer body_buffer.deinit();
+
+    var redirect_buffer: [8192]u8 = undefined;
+
+    var client = std.http.Client{
+        .allocator = allocator,
+        .io = io,
+    };
+    defer client.deinit();
+    const response = try client.fetch(.{
+        .method = .GET,
+        .location = .{ .uri = uri },
+        .redirect_buffer = &redirect_buffer,
+        .response_writer = &body_buffer.writer,
+    });
+
+    if (response.status != .ok) {
+        std.debug.print("HTTP Error: {any}\n", .{response.status});
+        return error.BadStatus;
     }
 
-    // In order to do I/O operations need an `Io` instance.
-    const io = init.io;
-
-    // Stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    var stdout_buffer: [1024]u8 = undefined;
-    var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
-    const stdout_writer = &stdout_file_writer.interface;
-
-    try hc_yt.printAnotherMessage(stdout_writer);
-
-    try stdout_writer.flush(); // Don't forget to flush!
-}
-
-test "simple test" {
-    const gpa = std.testing.allocator;
-    var list: std.ArrayList(i32) = .empty;
-    defer list.deinit(gpa); // Try commenting this out and see if zig detects the memory leak!
-    try list.append(gpa, 42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
-}
-
-test "fuzz example" {
-    try std.testing.fuzz({}, testOne, .{});
-}
-
-fn testOne(context: void, smith: *std.testing.Smith) !void {
-    _ = context;
-    // Try passing `--fuzz` to `zig build test` and see if it manages to fail this test case!
-
-    const gpa = std.testing.allocator;
-    var list: std.ArrayList(u8) = .empty;
-    defer list.deinit(gpa);
-    while (!smith.eos()) switch (smith.value(enum { add_data, dup_data })) {
-        .add_data => {
-            const slice = try list.addManyAsSlice(gpa, smith.value(u4));
-            smith.bytes(slice);
+    const playlist = try std.json.parseFromSlice(
+        Playlist,
+        allocator,
+        body_buffer.written(),
+        .{
+            .allocate = .alloc_always,
+            .ignore_unknown_fields = true,
         },
-        .dup_data => {
-            if (list.items.len == 0) continue;
-            if (list.items.len > std.math.maxInt(u32)) return error.SkipZigTest;
-            const len = smith.valueRangeAtMost(u32, 1, @min(32, list.items.len));
-            const off = smith.valueRangeAtMost(u32, 0, @intCast(list.items.len - len));
-            try list.appendSlice(gpa, list.items[off..][0..len]);
-            try std.testing.expectEqualSlices(
-                u8,
-                list.items[off..][0..len],
-                list.items[list.items.len - len ..],
-            );
-        },
-    };
+    );
+    return playlist;
 }

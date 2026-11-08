@@ -1,0 +1,15 @@
+# Zig build cache
+.zig-cache/
+zig-cache/
+
+# Build output (binaries, libs)
+zig-out/
+
+# Downloaded package cache (if vendored locally)
+.zig-global-cache/
+
+# Editor / OS junk
+.vscode/
+.idea/
+*.swp
+.DS_Store
