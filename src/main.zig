@@ -1,5 +1,5 @@
 const std = @import("std");
-const creator = @import("./creators.zig");
+const creators = @import("./creators.zig");
 const yt = @import("./youtube.zig");
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
@@ -15,13 +15,15 @@ pub fn main(init: std.process.Init) !void {
         return error.MissingApiKey;
     };
 
-    const creators = try creator.loadCreators(io, path, allocator);
-    defer creators.deinit();
+    var playlist_videos: std.ArrayList(yt.Video) = .empty;
 
-    try creator.saveCreators(io, path, creators.value);
-    const videos = try yt.fetchVideos(io, arena, yt_key, creators.value[1].playlist_id);
-
-    for (videos.items) |video| {
-        std.debug.print("Published At: {s}\nVideo Id: {s}\n", .{ video.contentDetails.videoPublishedAt.?, video.contentDetails.videoId });
+    const creator_list = try creators.loadCreators(io, path, allocator);
+    defer creator_list.deinit();
+    for (creator_list.value) |*creator| {
+        var videos = try yt.fetchVideos(io, arena, yt_key, creator.playlist_id);
+        videos = try yt.filterNewVideos(arena, videos, creator.last_publish_date);
+        try playlist_videos.appendSlice(arena, videos);
+        creator.last_publish_date = yt.newestDate(videos) orelse continue;
     }
+    try creators.saveCreators(io, path, creator_list.value);
 }

@@ -13,3 +13,8 @@ zig-out/
 .idea/
 *.swp
 .DS_Store
+
+
+.env
+token.json
+creators.json
